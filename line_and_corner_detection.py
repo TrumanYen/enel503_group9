@@ -34,7 +34,7 @@ edges = cv.Canny(closed, 10, 75)
 edges_dilate = cv.morphologyEx(edges, cv.MORPH_DILATE, kernel)
 
 # Use Hough Line Transform to detect long straight lines
-lines = cv.HoughLinesP(edges_dilate, 1, np.pi / 180, threshold=75, minLineLength=100, maxLineGap=30)
+lines = cv.HoughLinesP(edges_dilate, 1, np.pi / 180, threshold=200, minLineLength=50, maxLineGap=10)
 line_mask = np.zeros_like(edges_dilate)
 
 # Draw only the detected long straight lines onto a mask
@@ -50,7 +50,7 @@ lines_blurred = cv.GaussianBlur(src=line_mask, ksize = (7,7), sigmaX=3, sigmaY=3
 corner_response = cv.cornerHarris(np.float32(lines_blurred),45,5,0.2)
  
 #result is dilated for marking the corners, not important
-corner_response = cv.dilate(corner_response,None)
+corner_response = cv.morphologyEx(corner_response, cv.MORPH_OPEN, kernel, iterations=3)
  
 # Threshold for an optimal value, it may vary depending on the image.
 im_copy = img.copy()

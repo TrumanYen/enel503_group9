@@ -48,13 +48,21 @@ combined_edges = cv.bitwise_or(edges_dilate, line_mask)
 
 lines_blurred = cv.GaussianBlur(src=line_mask, ksize = (7,7), sigmaX=3, sigmaY=3)
 corner_response = cv.cornerHarris(np.float32(lines_blurred),45,5,0.2)
- 
+
 #result is dilated for marking the corners, not important
-corner_response = cv.morphologyEx(corner_response, cv.MORPH_OPEN, kernel, iterations=3)
+corner_response = cv.morphologyEx(corner_response, cv.MORPH_OPEN, kernel, iterations=4)
  
 # Threshold for an optimal value, it may vary depending on the image.
 im_copy = img.copy()
 im_copy[corner_response>0.01*corner_response.max()]=[255,0,0]
+
+corner_points = np.argwhere(corner_response>0.01*corner_response.max())
+hull = cv.convexHull(corner_points)
+hull = hull.reshape(-1, 2)
+for point in hull:
+    y = point[0]
+    x = point[1]
+    cv.circle(im_copy, (int(x), int(y)), 40, (0, 255, 0), -1)
 
 def draw_on_axis(ax, image, title):
     ax.imshow(image, cmap="gray")

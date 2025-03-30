@@ -14,6 +14,7 @@ filename = 'test_data/lines_in_background.jpg'
 # filename = 'test_data/small_angle_top.jpg' # Close to working, maybe just need to tweak learning rate or min lines
 
 img = cv.imread(filename)
+img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
 img_gray = cv.cvtColor(img,cv.COLOR_BGR2GRAY)
  
 
@@ -27,19 +28,19 @@ img_blurred = cv.GaussianBlur(
 )
 img_bilateral = cv.bilateralFilter(img_blurred, 10, 75, 75)
 THRESHOLD = 182
-_, thresholded1 =  cv.threshold(img_bilateral,THRESHOLD,255,cv.THRESH_TOZERO)
+_, initial_thresholded =  cv.threshold(img_bilateral,THRESHOLD,255,cv.THRESH_TOZERO)
 # Apply Sobel filters to detect long gradients (edges) along X and Y axes
-sobel_x = cv.Sobel(thresholded1, cv.CV_64F, 1, 0, ksize=5)
-sobel_y = cv.Sobel(thresholded1, cv.CV_64F, 0, 1, ksize=5)
+sobel_x = cv.Sobel(initial_thresholded, cv.CV_64F, 1, 0, ksize=5)
+sobel_y = cv.Sobel(initial_thresholded, cv.CV_64F, 0, 1, ksize=5)
 
 # Combine the gradients and convert to 8-bit
 sobel_combined = cv.magnitude(sobel_x, sobel_y)
 sobel_combined = np.uint8(sobel_combined)
-_,thresholded = cv.threshold(sobel_combined,0,255,cv.THRESH_BINARY+cv.THRESH_OTSU)
+_,sobel_thresholded = cv.threshold(sobel_combined,0,255,cv.THRESH_BINARY+cv.THRESH_OTSU)
 
 # Apply a closing operation to close gaps in the edges (reinforces long lines)
 kernel = cv.getStructuringElement(cv.MORPH_RECT, (5, 5))
-closed = cv.morphologyEx(thresholded, cv.MORPH_CLOSE, kernel)
+closed = cv.morphologyEx(sobel_thresholded, cv.MORPH_CLOSE, kernel)
 
 # Apply Canny edge detection: Adjust thresholds to ignore weaker text edges
 edges = cv.Canny(closed, 10, 75)
@@ -106,12 +107,14 @@ def draw_on_axis(ax, image, title):
     ax.imshow(image, cmap="gray")
     ax.set_title(title)
 
-fig, axes = plt.subplots(2, 3)
+fig, axes = plt.subplots(2, 4, figsize=(15,8))
 draw_on_axis(axes[0,0], img, "original")
-draw_on_axis(axes[0,1], thresholded, "thresholded sobel")
-draw_on_axis(axes[0,2], closed, "closed")
-draw_on_axis(axes[1,0], edges_dilate, "dilated edges")
-draw_on_axis(axes[1,1], line_mask, "Detected lines")
-draw_on_axis(axes[1,2], im_copy, "corners?")
-
+draw_on_axis(axes[0,1], initial_thresholded, "blurred thresholded")
+draw_on_axis(axes[0,2], sobel_combined, "sobel")
+draw_on_axis(axes[0,3], sobel_thresholded, "sobel thresholded")
+draw_on_axis(axes[1,0], closed, "closed")
+draw_on_axis(axes[1,1], edges_dilate, "dilated edges")
+draw_on_axis(axes[1,2], line_mask, "Detected lines")
+draw_on_axis(axes[1,3], im_copy, "corners?")
+plt.tight_layout()
 plt.show()

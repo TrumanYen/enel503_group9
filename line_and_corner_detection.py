@@ -16,9 +16,11 @@ img_blurred = cv.GaussianBlur(
     sigmaY=GAUSSIAN_SIGMA
 )
 img_bilateral = cv.bilateralFilter(img_blurred, 10, 75, 75)
+THRESHOLD = 182
+_, thresholded1 =  cv.threshold(img_bilateral,THRESHOLD,255,cv.THRESH_TOZERO)
 # Apply Sobel filters to detect long gradients (edges) along X and Y axes
-sobel_x = cv.Sobel(img_bilateral, cv.CV_64F, 1, 0, ksize=5)
-sobel_y = cv.Sobel(img_bilateral, cv.CV_64F, 0, 1, ksize=5)
+sobel_x = cv.Sobel(thresholded1, cv.CV_64F, 1, 0, ksize=5)
+sobel_y = cv.Sobel(thresholded1, cv.CV_64F, 0, 1, ksize=5)
 
 # Combine the gradients and convert to 8-bit
 sobel_combined = cv.magnitude(sobel_x, sobel_y)

@@ -7,7 +7,6 @@ def find_paper_corners(
         file_path: str, 
         bg_removal_thresh: int = 180,
         minimum_hough_lines: int = 40,
-        hough_learning_rate: int = 8,
         ):
 
     img = cv.imread(file_path)
@@ -41,23 +40,7 @@ def find_paper_corners(
     # Apply Canny edge detection: Adjust thresholds to ignore weaker text edges
     edges = cv.Canny(closed, 10, 75)
     edges_dilate = cv.morphologyEx(edges, cv.MORPH_DILATE, kernel)
-    # Iteratively find hough line transform threshold
-    lines = None
-    hough_thresh = 1500
-    while True:
-        # Use Hough Line Transform to detect long straight lines
-        lines = cv.HoughLines(edges_dilate, 1, np.pi / 180, threshold=hough_thresh)
-        num_lines = 0
-        if lines is not None:
-            num_lines = len(lines)
-            print("found", str(num_lines), "lines using thresh:", str(hough_thresh))
-            num_more_lines_req = minimum_hough_lines - num_lines
-            if num_more_lines_req <= 0:
-                break
-            else:
-                delta = hough_learning_rate * num_more_lines_req
-                hough_thresh -= delta
-        
+    lines = cv.HoughLines(edges_dilate, 1, np.pi / 180, threshold=800)[:minimum_hough_lines]   
 
     line_mask = np.zeros_like(edges_dilate)
     mask_h, mask_w = line_mask.shape
@@ -74,8 +57,6 @@ def find_paper_corners(
             pt2 = (int(x0 - mask_w*(-b)), int(y0 - mask_h*(a)))
             cv.line(line_mask, pt1, pt2, (255,255,255), 3, cv.LINE_AA)
 
-    # Combine the original edges and the line mask to emphasize straight lines
-    combined_edges = cv.bitwise_or(edges_dilate, line_mask)
 
     lines_blurred = cv.GaussianBlur(src=line_mask, ksize = (7,7), sigmaX=3, sigmaY=3)
     corner_response = cv.cornerHarris(np.float32(lines_blurred),45,5,0.2)

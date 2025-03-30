@@ -5,7 +5,6 @@ from find_paper_corners import find_paper_corners
 
 BG_REMOVAL_THRESH = 180
 MIN_HOUGH_LINES = 35
-HOUGH_LEARNING_RATE = 8
 
 for file in os.listdir("test_data"):
     if file.endswith(".jpg"):
@@ -14,5 +13,4 @@ for file in os.listdir("test_data"):
         find_paper_corners(
             file_path=file_path,
             bg_removal_thresh=BG_REMOVAL_THRESH,
-            minimum_hough_lines=MIN_HOUGH_LINES,
-            hough_learning_rate=HOUGH_LEARNING_RATE)
+            minimum_hough_lines=MIN_HOUGH_LINES)

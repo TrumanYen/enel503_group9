@@ -4,7 +4,7 @@ from find_paper_corners import find_paper_corners
 
 
 BG_REMOVAL_THRESH = 180
-MIN_HOUGH_LINES = 40
+MIN_HOUGH_LINES = 35
 HOUGH_LEARNING_RATE = 8
 
 for file in os.listdir("test_data"):

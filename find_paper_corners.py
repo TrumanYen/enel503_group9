@@ -5,7 +5,7 @@ import math
 
 def find_paper_corners(
         file_path: str, 
-        bg_removal_thresh: int = 182,
+        bg_removal_thresh: int = 180,
         minimum_hough_lines: int = 40,
         hough_learning_rate: int = 8,
         ):

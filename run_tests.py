@@ -4,7 +4,7 @@ from find_paper_corners import find_paper_corners
 
 
 BG_REMOVAL_THRESH = 180
-MIN_HOUGH_LINES = 35
+MIN_HOUGH_LINES = 30
 
 for file in os.listdir("test_data"):
     if file.endswith(".jpg"):

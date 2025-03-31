@@ -2,11 +2,95 @@ import numpy as np
 import cv2 as cv
 from matplotlib import pyplot as plt
 import math
+from sklearn.cluster import KMeans
+from scipy.stats import zscore
+
+def find_best_perpendicular_clusters(dominant_angles):
+    """Finds the two clusters that are closest to 90° apart."""
+    best_pair_of_labels = None
+    best_perpendicularity = float('inf')
+
+    # Check all pairs of the 3 clusters
+    for i in range(len(dominant_angles)):
+        for j in range(i + 1, len(dominant_angles)):
+            angle_diff = abs(dominant_angles[i] - dominant_angles[j])
+            angle_diff = min(angle_diff, 180 - angle_diff)  # Account for circular nature of angles
+            perpendicularity = abs(angle_diff - 90)  # Closer to 90 is better
+
+            if perpendicularity < best_perpendicularity:
+                best_perpendicularity = perpendicularity
+                best_pair_of_labels = (i, j)
+    print("good angle 0:", str(dominant_angles[best_pair_of_labels[0]]))
+    print("good angle 1:", str(dominant_angles[best_pair_of_labels[1]]))
+    return best_pair_of_labels
+
+def filter_outlier_lines(lines):
+    angles = np.degrees(lines[:, 0, 1])  # Convert theta from radians to degrees
+    angles_radians = np.radians(angles)  # Convert degrees to radians if needed
+    unit_vectors = np.column_stack((np.cos(angles_radians), np.sin(angles_radians)))
+
+    # Apply K-Means Clustering in 2d space.  2 clusters for expected lines and 1 for any noisy/wrong lines
+    NUM_DOMINANT_ANGLE_CANDIDATES = 3
+    kmeans = KMeans(n_clusters=NUM_DOMINANT_ANGLE_CANDIDATES, n_init=10)
+    cluster_labels = kmeans.fit_predict(unit_vectors)
+    
+    # Get mean angles for each cluster
+    dominant_angles = np.degrees(np.arctan2(kmeans.cluster_centers_[:, 1], kmeans.cluster_centers_[:, 0]))
+    dominant_angles = np.mod(dominant_angles, 180)  # Keep within 0-180 degrees
+    print("Dominant angles: ", str(dominant_angles))
+    best_pair_of_labels = find_best_perpendicular_clusters(dominant_angles)
+
+    good_angle_0 = dominant_angles[best_pair_of_labels[0]]
+    good_angle_1 = dominant_angles[best_pair_of_labels[1]]
+
+    line_errors_scored_by_good_angle_0 = np.minimum(
+        np.abs((angles - good_angle_0)),
+        180 - np.abs((angles - good_angle_0)))
+    line_errors_scored_by_good_angle_1 = np.minimum(
+        np.abs((angles - good_angle_1)),
+        180 - np.abs((angles - good_angle_1)))
+
+    err_thresh_degrees = 20.0
+    valid_lines_mask = (line_errors_scored_by_good_angle_0 < err_thresh_degrees) | (line_errors_scored_by_good_angle_1 < err_thresh_degrees)
+    filtered_lines = lines[valid_lines_mask]
+    return filtered_lines
+
+def find_all_intersections(lines, image_shape):
+    # Prep variables as vectors for efficiency
+    rhos = lines[:, 0, 0]
+    thetas = lines[:, 0, 1]
+    cosines = np.cos(thetas)
+    sines = np.sin(thetas)
+    # Keep denominators and numerators separate to avoid div by zero
+    x_intersections_denominators = np.outer(cosines,sines) - np.outer(sines, cosines)
+    x_intersections_numerators = np.outer(rhos, sines) - np.outer(sines, rhos)
+
+    intersections = []
+    for i_0 in range(0, len(lines)):
+        for i_1 in range(0, i_0):
+            angle_diff = np.abs(thetas[i_0] - thetas[i_1])
+            if angle_diff < 0.52:  # Approx 30 degrees
+                continue  # Skip lines that are not at least 60 degrees apart
+            if np.abs(x_intersections_denominators[i_0, i_1]) < 1e-10:  # Check for div by zero
+                continue 
+            sin_theta_0 = sines[i_0]
+            if np.abs(sin_theta_0) < 1e-10: # Check for div by zero again
+                continue
+            x = x_intersections_numerators[i_0, i_1] / x_intersections_denominators[i_0, i_1]
+            if (0 < x < image_shape[1]): # Check if x val in frame
+                rho_0 = rhos[i_0]
+                cos_theta_0 = cosines[i_0]
+                y = (rho_0 - (x*cos_theta_0)) / sin_theta_0
+                if (0 < y < image_shape[0]): # Check if y value is in frame
+                    intersections.append((x,y))
+
+    
+    return np.array(intersections)
 
 def find_paper_corners(
         file_path: str, 
         bg_removal_thresh: int = 180,
-        minimum_hough_lines: int = 40,
+        minimum_hough_lines: int = 30,
         ):
 
     img = cv.imread(file_path)
@@ -41,10 +125,14 @@ def find_paper_corners(
     edges = cv.Canny(closed, 10, 75)
     edges_dilate = cv.morphologyEx(edges, cv.MORPH_DILATE, kernel)
     lines = cv.HoughLines(edges_dilate, 1, np.pi / 180, threshold=800)[:minimum_hough_lines]   
+    lines = filter_outlier_lines(lines)
 
     line_mask = np.zeros_like(edges_dilate)
+    intersections = find_all_intersections(lines, line_mask.shape)
     mask_h, mask_w = line_mask.shape
-    # Draw the lines
+    scale = min(mask_h,mask_w)
+
+    # Draw the lines.  This is purely for debugging
     if lines is not None:
         for i in range(0, len(lines)):
             rho = lines[i][0][0]
@@ -53,29 +141,26 @@ def find_paper_corners(
             b = math.sin(theta)
             x0 = a * rho
             y0 = b * rho
-            pt1 = (int(x0 + mask_w*(-b)), int(y0 + mask_h*(a)))
-            pt2 = (int(x0 - mask_w*(-b)), int(y0 - mask_h*(a)))
+            pt1 = (int(x0 + scale*(-b)), int(y0 + scale*(a)))
+            pt2 = (int(x0 - scale*(-b)), int(y0 - scale*(a)))
             cv.line(line_mask, pt1, pt2, (255,255,255), 3, cv.LINE_AA)
-
-
-    lines_blurred = cv.GaussianBlur(src=line_mask, ksize = (7,7), sigmaX=3, sigmaY=3)
-    corner_response = cv.cornerHarris(np.float32(lines_blurred),45,5,0.2)
-
-    #result is dilated for marking the corners, not important
-    corner_response = cv.morphologyEx(corner_response, cv.MORPH_OPEN, kernel, iterations=4)
+        
     
     # Threshold for an optimal value, it may vary depending on the image.
     im_copy = img.copy()
-    im_copy[corner_response>0.01*corner_response.max()]=[255,0,0]
+    for intersection in intersections:
+        x, y = intersection
+        cv.circle(im_copy, (int(x), int(y)), 30, (255, 0, 0), -1)
+        cv.circle(line_mask, (int(x), int(y)), 30, (255, 0, 0), -1)
 
-    corner_points = np.argwhere(corner_response>0.01*corner_response.max())
-    if corner_points is not None:
-        hull = cv.convexHull(corner_points)
+    # corner_points = np.argwhere(corner_response>0.01*corner_response.max())
+    if intersections is not None:
+        hull = cv.convexHull(intersections)
         if hull is not None:
             hull = hull.reshape(-1, 2)
             for point in hull:
-                y = point[0]
-                x = point[1]
+                x = point[0]
+                y = point[1]
                 cv.circle(im_copy, (int(x), int(y)), 40, (0, 255, 0), -1)
 
     def draw_on_axis(ax, image, title):

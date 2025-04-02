@@ -5,6 +5,10 @@ import math
 from sklearn.cluster import KMeans
 from scipy.stats import zscore
 
+def draw_on_axis(ax, image, title):
+    ax.imshow(image, cmap="gray")
+    ax.set_title(title)
+    
 def find_best_perpendicular_clusters(dominant_angles):
     """Finds the two clusters that are closest to 90° apart."""
     best_pair_of_labels = None
@@ -56,6 +60,11 @@ def filter_outlier_lines(lines):
     return filtered_lines
 
 def find_all_intersections(lines, image_shape):
+    """
+    Returns:
+    - result: Image with intersection points (red dots) and corner points (green dots)
+    - hull: corner points (green dots as coordinates)
+    """
     # Prep variables as vectors for efficiency
     rhos = lines[:, 0, 0]
     thetas = lines[:, 0, 1]
@@ -91,6 +100,7 @@ def find_paper_corners(
         file_path: str, 
         bg_removal_thresh: int = 180,
         minimum_hough_lines: int = 30,
+        display_intermediate_results: bool = True,
         ):
 
     img = cv.imread(file_path)
@@ -133,7 +143,7 @@ def find_paper_corners(
     scale = min(mask_h,mask_w)
 
     # Draw the lines.  This is purely for debugging
-    if lines is not None:
+    if lines is not None and display_intermediate_results:
         for i in range(0, len(lines)):
             rho = lines[i][0][0]
             theta = lines[i][0][1]
@@ -147,13 +157,12 @@ def find_paper_corners(
         
     
     # Threshold for an optimal value, it may vary depending on the image.
-    im_copy = img.copy()
+    result = img.copy()
     for intersection in intersections:
         x, y = intersection
-        cv.circle(im_copy, (int(x), int(y)), 30, (255, 0, 0), -1)
+        cv.circle(result, (int(x), int(y)), 30, (255, 0, 0), -1)
         cv.circle(line_mask, (int(x), int(y)), 30, (255, 0, 0), -1)
 
-    # corner_points = np.argwhere(corner_response>0.01*corner_response.max())
     if intersections is not None:
         hull = cv.convexHull(intersections)
         if hull is not None:
@@ -161,23 +170,22 @@ def find_paper_corners(
             for point in hull:
                 x = point[0]
                 y = point[1]
-                cv.circle(im_copy, (int(x), int(y)), 40, (0, 255, 0), -1)
+                cv.circle(result, (int(x), int(y)), 40, (0, 255, 0), -1)
 
-    def draw_on_axis(ax, image, title):
-        ax.imshow(image, cmap="gray")
-        ax.set_title(title)
 
-    fig, axes = plt.subplots(2, 4, figsize=(15,8))
-    draw_on_axis(axes[0,0], img, "original")
-    draw_on_axis(axes[0,1], initial_thresholded, "blurred thresholded")
-    draw_on_axis(axes[0,2], sobel_combined, "sobel")
-    draw_on_axis(axes[0,3], sobel_thresholded, "sobel thresholded")
-    draw_on_axis(axes[1,0], closed, "closed")
-    draw_on_axis(axes[1,1], edges_dilate, "dilated edges")
-    draw_on_axis(axes[1,2], line_mask, "Detected lines")
-    draw_on_axis(axes[1,3], im_copy, "corners?")
-    plt.tight_layout()
-    plt.show()
+    if display_intermediate_results:
+        fig, axes = plt.subplots(2, 4, figsize=(15,8))
+        draw_on_axis(axes[0,0], img, "original")
+        draw_on_axis(axes[0,1], initial_thresholded, "blurred thresholded")
+        draw_on_axis(axes[0,2], sobel_combined, "sobel")
+        draw_on_axis(axes[0,3], sobel_thresholded, "sobel thresholded")
+        draw_on_axis(axes[1,0], closed, "closed")
+        draw_on_axis(axes[1,1], edges_dilate, "dilated edges")
+        draw_on_axis(axes[1,2], line_mask, "Detected lines")
+        draw_on_axis(axes[1,3], result, "corners?")
+        plt.tight_layout()
+        plt.show()
+    return result, hull
 
 if __name__ == "__main__":
     # Images that currently work:
@@ -186,8 +194,8 @@ if __name__ == "__main__":
     # filename = 'test_data/small_angle_bottom.jpg' 
     # filename = 'test_data/small_angle_left.jpg' 
 
-    # Images that currently don't work:
+    # Images that currently don't work (need to fix initial thresholding):
     # filename = 'test_data/large_angle_right.jpg' 
-    # filename = 'test_data/small_angle_top.jpg' # Close to working, maybe just need to tweak learning rate or min lines
+    # filename = 'test_data/small_angle_top.jpg'
 
     find_paper_corners(filename)

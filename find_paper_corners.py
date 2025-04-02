@@ -96,6 +96,19 @@ def find_all_intersections(lines, image_shape):
     
     return np.array(intersections)
 
+def order_corners(corners):
+    ordered_corners = np.zeros((4, 2))
+    s = corners.sum(axis=1)
+    diff = np.diff(corners, axis=1)
+
+    #  should be top left, top right, bottom right, bottom left
+    ordered_corners[0] = corners[np.argmin(s)]
+    ordered_corners[1] = corners[np.argmin(diff)]
+    ordered_corners[2] = corners[np.argmax(s)]
+    ordered_corners[3] = corners[np.argmax(diff)]
+
+    return ordered_corners
+
 def find_paper_corners(
         file_path: str, 
         bg_removal_thresh: int = 180,
@@ -172,6 +185,21 @@ def find_paper_corners(
                 y = point[1]
                 cv.circle(result, (int(x), int(y)), 40, (0, 255, 0), -1)
 
+    corners = None
+    if intersections is not None and len(intersections) >= 4:
+        hull = cv.convexHull(intersections)
+        if hull is not None and len(hull) >= 4:
+            hull = hull.reshape(-1, 2)
+
+            # Try to approximate hull to 4 corners
+            epsilon = 0.05 * cv.arcLength(hull, True)
+            boundingBox = cv.approxPolyDP(hull, epsilon, True)
+            if len(boundingBox) == 4:
+                corners = order_corners(boundingBox.reshape(-1, 2))
+            else:
+                print("error getting corners")
+
+
 
     if display_intermediate_results:
         fig, axes = plt.subplots(2, 4, figsize=(15,8))
@@ -185,7 +213,7 @@ def find_paper_corners(
         draw_on_axis(axes[1,3], result, "corners?")
         plt.tight_layout()
         plt.show()
-    return result, hull
+    return result, hull, corners
 
 if __name__ == "__main__":
     # Images that currently work:

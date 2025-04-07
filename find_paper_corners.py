@@ -77,9 +77,11 @@ def find_all_intersections(lines, image_shape):
     intersections = []
     for i_0 in range(0, len(lines)):
         for i_1 in range(0, i_0):
-            angle_diff = np.abs(thetas[i_0] - thetas[i_1])
-            if angle_diff < 0.52:  # Approx 30 degrees
-                continue  # Skip lines that are not at least 60 degrees apart
+            angle_diff = np.minimum(
+                np.abs((thetas[i_0] - thetas[i_1])),
+                math.pi - np.abs((thetas[i_0] - thetas[i_1])))
+            if angle_diff < 0.349:
+                continue  # Skip lines that are less than 20 degrees apart
             if np.abs(x_intersections_denominators[i_0, i_1]) < 1e-10:  # Check for div by zero
                 continue 
             sin_theta_0 = sines[i_0]
@@ -180,7 +182,8 @@ def find_paper_corners(
         if display_intermediate_results:
             cv.circle(line_mask, (int(x), int(y)), 30, (255, 0, 0), -1)
 
-    if intersections is not None:
+    hull = None
+    if intersections is not None and len(intersections) >= 4:
         hull = cv.convexHull(intersections)
         if hull is not None:
             hull = hull.reshape(-1, 2)
@@ -221,17 +224,16 @@ def find_paper_corners(
 
 if __name__ == "__main__":
     # Images that currently work:
-    filename = 'test_data/lines_in_background.jpg' 
+    # filename = 'test_data/lines_in_background.jpg' 
     # filename = 'test_data/perpendicular.jpg' 
     # filename = 'test_data/small_angle_bottom.jpg' 
     # filename = 'test_data/small_angle_left.jpg' 
-
-    # Images that currently don't work (need to fix initial thresholding):
-    # filename = 'test_data/large_angle_right.jpg' 
+    filename = 'test_data/large_angle_right.jpg' 
     # filename = 'test_data/small_angle_top.jpg'
-
     # filename = 'test_data/rotated_and_perspective.jpg' 
     # filename = 'test_data/rotated_and_perpendicular.jpg' 
+
+    # Images that currently don't work:
     # filename = 'test_data/4_1.jpg' 
 
 

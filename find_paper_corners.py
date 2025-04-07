@@ -96,6 +96,23 @@ def find_all_intersections(lines, image_shape):
     
     return np.array(intersections)
 
+def visualize_hough_lines(lines, shape):
+    line_mask = np.zeros(shape)
+    if lines is not None:
+        mask_h, mask_w = line_mask.shape
+        scale = min(mask_h,mask_w)
+        for i in range(0, len(lines)):
+            rho = lines[i][0][0]
+            theta = lines[i][0][1]
+            a = math.cos(theta)
+            b = math.sin(theta)
+            x0 = a * rho
+            y0 = b * rho
+            pt1 = (int(x0 + scale*(-b)), int(y0 + scale*(a)))
+            pt2 = (int(x0 - scale*(-b)), int(y0 - scale*(a)))
+            cv.line(line_mask, pt1, pt2, (255,255,255), 3, cv.LINE_AA)
+    return line_mask
+
 def order_corners(corners):
     ordered_corners = np.zeros((4, 2))
     s = corners.sum(axis=1)
@@ -147,26 +164,12 @@ def find_paper_corners(
     # Apply Canny edge detection: Adjust thresholds to ignore weaker text edges
     edges = cv.Canny(closed, 10, 75)
     edges_dilate = cv.morphologyEx(edges, cv.MORPH_DILATE, kernel)
-    lines = cv.HoughLines(edges_dilate, 1, np.pi / 180, threshold=800)[:minimum_hough_lines]   
-    lines = filter_outlier_lines(lines)
-
-    line_mask = np.zeros_like(edges_dilate)
-    intersections = find_all_intersections(lines, line_mask.shape)
-    mask_h, mask_w = line_mask.shape
-    scale = min(mask_h,mask_w)
-
-    # Draw the lines.  This is purely for debugging
-    if lines is not None and display_intermediate_results:
-        for i in range(0, len(lines)):
-            rho = lines[i][0][0]
-            theta = lines[i][0][1]
-            a = math.cos(theta)
-            b = math.sin(theta)
-            x0 = a * rho
-            y0 = b * rho
-            pt1 = (int(x0 + scale*(-b)), int(y0 + scale*(a)))
-            pt2 = (int(x0 - scale*(-b)), int(y0 - scale*(a)))
-            cv.line(line_mask, pt1, pt2, (255,255,255), 3, cv.LINE_AA)
+    lines_unfiltered = cv.HoughLines(edges_dilate, 1, np.pi / 180, threshold=800)[:minimum_hough_lines]   
+    lines = filter_outlier_lines(lines_unfiltered)
+    if display_intermediate_results:
+        line_mask_unfiltered = visualize_hough_lines(lines_unfiltered, edges_dilate.shape)
+        line_mask = visualize_hough_lines(lines, edges_dilate.shape)
+    intersections = find_all_intersections(lines, edges_dilate.shape)
         
     
     # Threshold for an optimal value, it may vary depending on the image.
@@ -174,7 +177,8 @@ def find_paper_corners(
     for intersection in intersections:
         x, y = intersection
         cv.circle(result, (int(x), int(y)), 30, (255, 0, 0), -1)
-        cv.circle(line_mask, (int(x), int(y)), 30, (255, 0, 0), -1)
+        if display_intermediate_results:
+            cv.circle(line_mask, (int(x), int(y)), 30, (255, 0, 0), -1)
 
     if intersections is not None:
         hull = cv.convexHull(intersections)
@@ -207,8 +211,8 @@ def find_paper_corners(
         draw_on_axis(axes[0,1], initial_thresholded, "blurred thresholded")
         draw_on_axis(axes[0,2], sobel_combined, "sobel")
         draw_on_axis(axes[0,3], sobel_thresholded, "sobel thresholded")
-        draw_on_axis(axes[1,0], closed, "closed")
-        draw_on_axis(axes[1,1], edges_dilate, "dilated edges")
+        draw_on_axis(axes[1,0], edges_dilate, "dilated edges")
+        draw_on_axis(axes[1,1], line_mask_unfiltered, "unfiltered lines")
         draw_on_axis(axes[1,2], line_mask, "Detected lines")
         draw_on_axis(axes[1,3], result, "corners?")
         plt.tight_layout()
@@ -225,5 +229,9 @@ if __name__ == "__main__":
     # Images that currently don't work (need to fix initial thresholding):
     # filename = 'test_data/large_angle_right.jpg' 
     # filename = 'test_data/small_angle_top.jpg'
+
+    # filename = 'test_data/rotated_and_perspective.jpg' 
+    # filename = 'test_data/rotated_and_perpendicular.jpg' 
+
 
     find_paper_corners(filename)

@@ -9,8 +9,28 @@ BG_REMOVAL_THRESH = 180
 MIN_HOUGH_LINES = 30
 DISPLAY_INTERMEDIATE_RESULTS = False
 
+def approximate_aspect_ratio(corners):
+    #  should be top left, top right, bottom right, bottom left
+    top_left = corners[0]
+    top_right = corners[1]
+    bottom_right = corners[2]
+    bottom_left = corners[3]
+
+    top_dist = np.linalg.norm(top_right - top_left)
+    left_dist = np.linalg.norm(bottom_left - top_left)
+    bottom_dist = np.linalg.norm(bottom_right - bottom_left)
+    right_dist = np.linalg.norm(bottom_right - top_right)
+
+    width_avg = (top_dist + bottom_dist) * 0.5
+    height_avg = (left_dist + right_dist) * 0.5
+
+    return height_avg / width_avg
+
 def perspectiveTransform(image, corners):
-    H, W = image.shape[:2]
+    aspect_ratio = approximate_aspect_ratio(corners)
+    original_h, original_w = image.shape[:2]
+    W = original_w
+    H = int(W * aspect_ratio)
     src = np.array(corners, dtype=np.float32)
     dst = np.array([[0, 0],[W - 1, 0],[W - 1, H - 1],[0, H - 1]], dtype=np.float32)
     M = cv2.getPerspectiveTransform(src, dst) # this function requires that the type be float32 so we add dtype to the 

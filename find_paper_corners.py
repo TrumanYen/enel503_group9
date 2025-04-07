@@ -54,7 +54,7 @@ def filter_outlier_lines(lines):
         np.abs((angles - good_angle_1)),
         180 - np.abs((angles - good_angle_1)))
 
-    err_thresh_degrees = 20.0
+    err_thresh_degrees = 30.0
     valid_lines_mask = (line_errors_scored_by_good_angle_0 < err_thresh_degrees) | (line_errors_scored_by_good_angle_1 < err_thresh_degrees)
     filtered_lines = lines[valid_lines_mask]
     return filtered_lines
@@ -128,7 +128,7 @@ def order_corners(corners):
 
 def find_paper_corners(
         file_path: str, 
-        bg_removal_thresh: int = 180,
+        bg_removal_thresh: int = 175,
         minimum_hough_lines: int = 30,
         display_intermediate_results: bool = True,
         ):
@@ -232,6 +232,7 @@ if __name__ == "__main__":
 
     # filename = 'test_data/rotated_and_perspective.jpg' 
     # filename = 'test_data/rotated_and_perpendicular.jpg' 
+    # filename = 'test_data/4_1.jpg' 
 
 
     find_paper_corners(filename)

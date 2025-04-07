@@ -5,7 +5,7 @@ from matplotlib import pyplot as plt
 import cv2
 import numpy as np
 
-BG_REMOVAL_THRESH = 180
+BG_REMOVAL_THRESH = 175
 MIN_HOUGH_LINES = 30
 DISPLAY_INTERMEDIATE_RESULTS = False
 

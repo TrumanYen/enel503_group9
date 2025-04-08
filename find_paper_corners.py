@@ -183,20 +183,15 @@ def find_paper_corners(
             cv.circle(line_mask, (int(x), int(y)), 30, (255, 0, 0), -1)
 
     hull = None
-    if intersections is not None and len(intersections) >= 4:
-        hull = cv.convexHull(intersections)
-        if hull is not None:
-            hull = hull.reshape(-1, 2)
-            for point in hull:
-                x = point[0]
-                y = point[1]
-                cv.circle(result, (int(x), int(y)), 40, (0, 255, 0), -1)
-
     corners = None
     if intersections is not None and len(intersections) >= 4:
         hull = cv.convexHull(intersections)
         if hull is not None and len(hull) >= 4:
             hull = hull.reshape(-1, 2)
+            for point in hull:
+                x = point[0]
+                y = point[1]
+                cv.circle(result, (int(x), int(y)), 40, (0, 255, 0), -1)
 
             # Try to approximate hull to 4 corners
             epsilon = 0.05 * cv.arcLength(hull, True)
@@ -221,20 +216,3 @@ def find_paper_corners(
         plt.tight_layout()
         plt.show()
     return result, hull, corners
-
-if __name__ == "__main__":
-    # Images that currently work:
-    # filename = 'test_data/lines_in_background.jpg' 
-    # filename = 'test_data/perpendicular.jpg' 
-    # filename = 'test_data/small_angle_bottom.jpg' 
-    # filename = 'test_data/small_angle_left.jpg' 
-    filename = 'test_data/large_angle_right.jpg' 
-    # filename = 'test_data/small_angle_top.jpg'
-    # filename = 'test_data/rotated_and_perspective.jpg' 
-    # filename = 'test_data/rotated_and_perpendicular.jpg' 
-
-    # Images that currently don't work:
-    # filename = 'test_data/4_1.jpg' 
-
-
-    find_paper_corners(filename)

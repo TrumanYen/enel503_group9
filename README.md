@@ -10,8 +10,15 @@ This project implements a document scanner using basic OpenCV functions
       python -m venv ./venv
       source ./venv/bin/activate
       ```
+    - Windows Powershell:
+      ```
+      python -m venv ./venv
+      .\.venv\Scripts\activate
+      ```
+      
 2. Install dependencies
     - Linux: `pip install -r requirements.txt`
+    - Windows `pip install -r requirements.txt`
 
 # Instructions To Run Code
 - To run across all images: `python run_tests.py`
